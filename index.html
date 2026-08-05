@@ -1,10 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Night Picker</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-$END$
+
+<header>
+    <h1>Movie Night Picker</h1>
+    <p>Enter what you're in the mood for.</p>
+</header>
+
+<main>
+    <label for="genre">Genre</label>
+    <select id="genre">
+        <option value="Comedy">Comedy</option>
+        <option value="Thriller">Thriller</option>
+        <option value="Drama">Drama</option>
+    </select>
+
+    <label for="mood">Mood</label>
+    <select id="mood">
+        <option value="Light">Light</option>
+        <option value="Suspenseful">Suspenseful</option>
+        <option value="Emotional">Emotional</option>
+    </select>
+
+    <button id="findMovieBtn">Find Movie</button>
+
+    <div id="result"></div>
+</main>
+
+<script src="script.js"></script>
 </body>
 </html>
