@@ -18,6 +18,13 @@ function getEra(year) {
     return '2020+';
 }
 
+function getRuntimeCategory(runtime) {
+    if (!runtime) return null;
+    if (runtime < 90) return 'Short';
+    if (runtime <= 120) return 'Standard';
+    return 'Long';
+}
+
 let results = [];
 
 for (let i = 1; i <= BATCH_COUNT; i++) {
@@ -32,13 +39,15 @@ for (let i = 1; i <= BATCH_COUNT; i++) {
 
     const trimmed = raw.map(doc => {
         const castCredit = doc.principalCredits?.find(c => c.category?.id === 'cast');
+        const runtimeMinutes = doc.runtime ? Math.round(doc.runtime.seconds / 60) : null;
 
         return {
             id: doc.id,
             title: doc.titleText?.text,
             year: doc.releaseYear?.year,
             era: getEra(doc.releaseYear?.year),
-            runtime: doc.runtime ? Math.round(doc.runtime.seconds / 60) : null,
+            runtime: runtimeMinutes,
+            runtimeCategory: getRuntimeCategory(runtimeMinutes),
             genres: doc.genres?.genres?.map(g => g.text) || [],
             rating: doc.ratingsSummary?.aggregateRating ?? null,
             plot: doc.plot?.plotText?.plainText || '',

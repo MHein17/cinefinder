@@ -1,2 +1,4 @@
 node_modules/
 .env
+raw_batches/
+movies_subset.json
