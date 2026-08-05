@@ -68,11 +68,23 @@ const server = http.createServer(async (req, res) => {
             if (docs.length > 0) {
                 var html = docs.map(function(doc) {
                     var ratingDisplay = doc.rating !== null ? doc.rating : 'Not yet rated';
-                    return '<h3>' + doc.title + ' (' + doc.year + ')</h3>' +
+                    var castDisplay = doc.cast && doc.cast.length > 0 ? doc.cast.join(', ') : 'Not listed';
+                    var certificateDisplay = doc.certificate || 'Not rated';
+                    var countriesDisplay = doc.countries && doc.countries.length > 0 ? doc.countries.join(', ') : 'Unknown';
+                    var languagesDisplay = doc.languages && doc.languages.length > 0 ? doc.languages.join(', ') : 'Unknown';
+                    var posterHtml = doc.poster ? '<img src="' + doc.poster + '" alt="' + doc.title + ' poster" style="max-width:150px;">' : '';
+
+                    return posterHtml +
+                        '<h3>' + doc.title + ' (' + doc.year + ')</h3>' +
                         '<p>' + doc.plot + '</p>' +
                         '<p><strong>Genres:</strong> ' + doc.genres.join(', ') + '</p>' +
-                        '<p><strong>Rating:</strong> ' + ratingDisplay +
-                        ' | <strong>Runtime:</strong> ' + doc.runtime + ' min (' + doc.runtimeCategory + ')</p>';
+                        '<p><strong>Era:</strong> ' + doc.era + '</p>' +
+                        '<p><strong>Rating:</strong> ' + ratingDisplay + '</p>' +
+                        '<p><strong>Runtime:</strong> ' + doc.runtime + ' min (' + doc.runtimeCategory + ')</p>' +
+                        '<p><strong>Certificate:</strong> ' + certificateDisplay + '</p>' +
+                        '<p><strong>Cast:</strong> ' + castDisplay + '</p>' +
+                        '<p><strong>Countries:</strong> ' + countriesDisplay + '</p>' +
+                        '<p><strong>Languages:</strong> ' + languagesDisplay + '</p>';
                 }).join('<hr>');
 
                 res.writeHead(200, { 'Content-Type': 'text/html' });
