@@ -40,22 +40,51 @@ function serveStaticFile(req, res) {
     });
 }
 
+function sendJson(res, statusCode, payload) {
+    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(payload));
+}
+
 const server = http.createServer(async (req, res) => {
 
     try {
         if (req.url.startsWith('/moviequery')) {
-            // supported query params: genre, era, minRating, runtimeCategory
+            // supported query params:
+            //   genre           - comma-separated, matches ANY selected genre (multi-select on Figma)
+            //   certificate     - single value (PG, PG-13, R, NC-17, General)
+            //   era             - single value
+            //   language        - single value, matches if present in the languages array
+            //   runtimeCategory - single value (Short, Standard, Long)
+            //   minRating       - optional, not on current Figma screens but harmless to keep
+            //   limit           - optional, defaults to 20, capped at 50
             const parsedUrl = new URL(req.url, 'http://localhost');
-            const genre = parsedUrl.searchParams.get('genre');
+            const genreParam = parsedUrl.searchParams.get('genre');
+            const certificate = parsedUrl.searchParams.get('certificate');
             const era = parsedUrl.searchParams.get('era');
-            const minRating = parsedUrl.searchParams.get('minRating');
+            const language = parsedUrl.searchParams.get('language');
             const runtimeCategory = parsedUrl.searchParams.get('runtimeCategory');
+            const minRating = parsedUrl.searchParams.get('minRating');
+            const limitParam = parsedUrl.searchParams.get('limit');
 
             const filter = {};
-            if (genre) filter.genres = genre;
+
+            // genre supports multiple selections, e.g. ?genre=Action,Comedy
+            // $in matches a movie if ANY of its genres appears in the selected list
+            if (genreParam) {
+                const genreList = genreParam.split(',').map(g => g.trim()).filter(Boolean);
+                if (genreList.length > 0) filter.genres = { $in: genreList };
+            }
+
+            if (certificate) filter.certificate = certificate;
             if (era) filter.era = era;
-            if (minRating) filter.rating = { $gte: Number(minRating) };
+            if (language) filter.languages = language; // matches if language is anywhere in the array
             if (runtimeCategory) filter.runtimeCategory = runtimeCategory;
+            if (minRating) filter.rating = { $gte: Number(minRating) };
+
+            // default 20 results, hard cap at 50 to avoid accidentally returning everything
+            var limit = limitParam ? Number(limitParam) : 20;
+            if (isNaN(limit) || limit <= 0) limit = 20;
+            if (limit > 50) limit = 50;
 
             const client = await MongoClient.connect(mongoUri, {
                 serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true }
@@ -63,36 +92,13 @@ const server = http.createServer(async (req, res) => {
             const db = client.db('apan5490');
             const collection = db.collection('movies');
 
-            const docs = await collection.find(filter).limit(10).toArray();
+            const docs = await collection.find(filter).limit(limit).toArray();
 
-            if (docs.length > 0) {
-                var html = docs.map(function(doc) {
-                    var ratingDisplay = doc.rating !== null ? doc.rating : 'Not yet rated';
-                    var castDisplay = doc.cast && doc.cast.length > 0 ? doc.cast.join(', ') : 'Not listed';
-                    var certificateDisplay = doc.certificate || 'Not rated';
-                    var countriesDisplay = doc.countries && doc.countries.length > 0 ? doc.countries.join(', ') : 'Unknown';
-                    var languagesDisplay = doc.languages && doc.languages.length > 0 ? doc.languages.join(', ') : 'Unknown';
-                    var posterHtml = doc.poster ? '<img src="' + doc.poster + '" alt="' + doc.title + ' poster" style="max-width:150px;">' : '';
-
-                    return posterHtml +
-                        '<h3>' + doc.title + ' (' + doc.year + ')</h3>' +
-                        '<p>' + doc.plot + '</p>' +
-                        '<p><strong>Genres:</strong> ' + doc.genres.join(', ') + '</p>' +
-                        '<p><strong>Era:</strong> ' + doc.era + '</p>' +
-                        '<p><strong>Rating:</strong> ' + ratingDisplay + '</p>' +
-                        '<p><strong>Runtime:</strong> ' + doc.runtime + ' min (' + doc.runtimeCategory + ')</p>' +
-                        '<p><strong>Certificate:</strong> ' + certificateDisplay + '</p>' +
-                        '<p><strong>Cast:</strong> ' + castDisplay + '</p>' +
-                        '<p><strong>Countries:</strong> ' + countriesDisplay + '</p>' +
-                        '<p><strong>Languages:</strong> ' + languagesDisplay + '</p>';
-                }).join('<hr>');
-
-                res.writeHead(200, { 'Content-Type': 'text/html' });
-                res.end(html);
-            } else {
-                res.writeHead(200, { 'Content-Type': 'text/html' });
-                res.end('<p>No matches found. Try different filters.</p>');
-            }
+            sendJson(res, 200, {
+                count: docs.length,
+                filters: { genre: genreParam, certificate, era, language, runtimeCategory, minRating, limit },
+                results: docs
+            });
 
             await client.close();
 
@@ -100,8 +106,7 @@ const server = http.createServer(async (req, res) => {
             serveStaticFile(req, res);
         }
     } catch (err) {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('Error: ' + err);
+        sendJson(res, 500, { error: 'Server error', message: String(err) });
     }
 });
 
